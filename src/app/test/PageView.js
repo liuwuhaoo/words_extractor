@@ -1,11 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import TextLayer from "./TextLayer";
+import { useMyContext, usePage } from "./DataContext";
 
 const computeSize = (size, zoom) => (((size * zoom) / 72) | 0) + "px";
 
-const PageView = ({ doc, number, zoom, worker, needle}) => {
-    const [size, setSize] = useState(null);
-    const [textData, setTextData] = useState(null);
-    const [searchData, setSearchData] = useState(null);
+const PageView = ({ pageNumber }) => {
+    const { state: {zoom} } = useMyContext();
+    const { page: { size, textData, imageData } = {}, isLoading } =
+        usePage(pageNumber);
+
+    console.log(zoom, imageData, textData)
+
+    // const [size, setSize] = useState(null);
+    // const [textData, setTextData] = useState(null);
+    // const [searchData, setSearchData] = useState(null);
+    // const [imageData, setImageData] = useState(null);
 
     const rootNodeRef = useRef(null);
     const canvasNodeRef = useRef(null);
@@ -13,113 +22,92 @@ const PageView = ({ doc, number, zoom, worker, needle}) => {
     const textNodeRef = useRef(null);
     const searchNodeRef = useRef(null);
 
-    useEffect(() => {
-        async function loadPage() {
-            const size = await worker.getPageSize(doc, number);
-            setSize(size);
-            const textData = await worker.getPageText(doc, number);
-            setTextData(textData);
-        }
-        loadPage();
-    }, [doc, number, worker]);
+    // useEffect(() => {
+    //     async function drawPage() {
+    //         const imageData = await worker.drawPageAsPixmap(
+    //             doc,
+    //             pageNumber,
+    //             zoom * devicePixelRatio
+    //         );
+    //         setImageData(imageData);
+    //     }
+    //     if (worker) {
+    //         drawPage();
+    //     }
+    // }, [doc, pageNumber, zoom, worker]);
 
     useEffect(() => {
-        async function drawPage() {
-            const imageData = await worker.drawPageAsPixmap(
-                doc,
-                number,
-                zoom * devicePixelRatio
-            );
-            canvasCtxRef.current.putImageData(imageData, 0, 0);
+        if (!imageData) {
+            return;
         }
+        canvasNodeRef.current.width = imageData.width;
+        canvasNodeRef.current.height = imageData.height;
+        canvasCtxRef.current.putImageData(imageData, 0, 0);
+    }, [imageData]);
 
-        drawPage();
-    }, [doc, number, zoom, worker]);
-
-    useEffect(() => {
-        async function searchNeedle() {
-            if (!needle) {
-                return;
-            }
-            const searchData = await worker.search(doc, number, needle);
-            setSearchData(searchData);
-        }
-        searchNeedle();
-    }, [needle, doc, number, worker]);
+    // useEffect(() => {
+    //     async function searchNeedle() {
+    //         if (!needle) {
+    //             return;
+    //         }
+    //         const searchData = await worker.search(doc, pageNumber, needle);
+    //         setSearchData(searchData);
+    //     }
+    //     searchNeedle();
+    // }, [needle, doc, pageNumber, worker]);
 
     useEffect(() => {
         canvasCtxRef.current = canvasNodeRef.current.getContext("2d");
-    }, [number]);
+    }, [pageNumber]);
 
-    const textElements = useMemo(() => {
-        if (!textData || !textData.blocks) {
-            return [];
-        }
-        const scale = zoom / 72;
-        return textData.blocks.flatMap((block, blockIndex) => {
-            if (block.type !== "text") return [];
-
-            return block.lines.map((line, lineIndex) => (
-                <text
-                    key={`${blockIndex}-${lineIndex}`}
-                    x={`${line.bbox.x * scale}px`}
-                    y={`${line.y * scale}px`}
-                    style={{
-                        fontSize: `${line.font.size * scale}px`,
-                        fontFamily: line.font.family,
-                        fontWeight: line.font.weight,
-                        fontStyle: line.font.style,
-                    }}
-                    textLength={`${line.bbox.w * scale}px`}
-                    lengthAdjust="spacingAndGlyphs"
-                >
-                    {line.text}
-                </text>
-            ));
-        });
-    }, [textData, zoom]);
-
-    const highlightElements = useMemo(() => {
-        if (!searchData || !needle) return null;
-        const scale = zoom / 72;
-        return searchData.map((bbox, index) => (
-          <div
-            key={index}
-            style={{
-              position: 'absolute',
-              left: `${bbox.x * scale}px`,
-              top: `${bbox.y * scale}px`,
-              width: `${bbox.w * scale}px`,
-              height: `${bbox.h * scale}px`,
-              backgroundColor: 'rgba(255, 255, 0, 0.3)', // Example highlight color
-              pointerEvents: 'none', // Allows clicking through the highlight
-            }}
-          />
-        ));
-      }, [searchData, zoom, needle]);
-    
+    // const highlightElements = useMemo(() => {
+    //     if (!searchData || !needle) return null;
+    //     const scale = zoom / 72;
+    //     return searchData.map((bbox, index) => (
+    //         <div
+    //             key={index}
+    //             style={{
+    //                 position: "absolute",
+    //                 left: `${bbox.x * scale}px`,
+    //                 top: `${bbox.y * scale}px`,
+    //                 width: `${bbox.w * scale}px`,
+    //                 height: `${bbox.h * scale}px`,
+    //                 backgroundColor: "rgba(255, 255, 0, 0.3)", // Example highlight color
+    //                 pointerEvents: "none", // Allows clicking through the highlight
+    //             }}
+    //         />
+    //     ));
+    // }, [searchData, zoom, needle]);
 
     return (
         <div
             ref={rootNodeRef}
             className="page"
-            style={{
-                width: computeSize(size.width, zoom),
-                height: computeSize(size.height, zoom),
-            }}
+            style={
+                size && {
+                    width: computeSize(size.width, zoom),
+                    height: computeSize(size.height, zoom),
+                }
+            }
         >
             <canvas
                 ref={canvasNodeRef}
-                style={{
-                    width: computeSize(size.width, zoom),
-                    height: computeSize(size.height, zoom),
-                }}
+                style={
+                    size && {
+                        width: computeSize(size.width, zoom),
+                        height: computeSize(size.height, zoom),
+                    }
+                }
                 zoom={zoom}
             />
-            <svg ref={textNodeRef} className="text">
-                {textElements}
-            </svg>
-            <div ref={searchNodeRef}>{highlightElements}</div>
+            <TextLayer
+                // worker={worker}
+                // doc={doc}
+                // pageNumber={pageNumber}
+                textData={textData}
+                zoom={zoom}
+            />
+            {/* <div ref={searchNodeRef}>{highlightElements}</div> */}
         </div>
     );
 };

@@ -20,165 +20,204 @@
 // Artifex Software, Inc., 39 Mesa Street, Suite 108A, San Francisco,
 // CA 94129, USA, for further information.
 
-"use strict"
+"use strict";
 
-import * as mupdf from "./dist/mupdf.js"
+import * as mupdf from "./dist/mupdf.js";
 
-const methods = {}
+const methods = {};
 
 onmessage = async function (event) {
-	let [ func, id, args ] = event.data
-	try {
-		let result = methods[func](...args)
-		postMessage([ "RESULT", id, result ])
-	} catch (error) {
-		postMessage([ "ERROR", id, { name: error.name, message: error.message, stack: error.stack } ])
-	}
-}
+    let [func, id, args] = event.data;
+    try {
+        let result = methods[func](...args);
+        postMessage(["RESULT", id, result]);
+    } catch (error) {
+        postMessage([
+            "ERROR",
+            id,
+            { name: error.name, message: error.message, stack: error.stack },
+        ]);
+    }
+};
 
-var document_next_id = 1
-var document_map = {} // open mupdf.Document handles
+var document_next_id = 1;
+var document_map = {}; // open mupdf.Document handles
 
 methods.openDocumentFromBuffer = function (buffer, magic) {
-	let doc_id = document_next_id++
-	document_map[doc_id] = mupdf.Document.openDocument(buffer, magic)
-	return doc_id
-}
+    let doc_id = document_next_id++;
+    document_map[doc_id] = mupdf.Document.openDocument(buffer, magic);
+    return doc_id;
+};
 
 methods.closeDocument = function (doc_id) {
-	let doc = document_map[doc_id]
-	doc.destroy()
-	delete document_map[doc_id]
-}
+    let doc = document_map[doc_id];
+    doc.destroy();
+    delete document_map[doc_id];
+};
 
 methods.documentTitle = function (doc_id) {
-	let doc = document_map[doc_id]
-	return doc.getMetaData(mupdf.Document.META_INFO_TITLE)
-}
+    let doc = document_map[doc_id];
+    return doc.getMetaData(mupdf.Document.META_INFO_TITLE);
+};
 
 methods.documentOutline = function (doc_id) {
-	let doc = document_map[doc_id]
-	return doc.loadOutline()
-}
+    let doc = document_map[doc_id];
+    return doc.loadOutline();
+};
 
 methods.countPages = function (doc_id) {
-	let doc = document_map[doc_id]
-	return doc.countPages()
-}
+    let doc = document_map[doc_id];
+    return doc.countPages();
+};
 
 methods.getPageSize = function (doc_id, page_number) {
-	let doc = document_map[doc_id]
-	let page = doc.loadPage(page_number)
-	let bounds = page.getBounds()
-	return { width: bounds[2] - bounds[0], height: bounds[3] - bounds[1] }
-}
+    let doc = document_map[doc_id];
+    let page = doc.loadPage(page_number);
+    let bounds = page.getBounds();
+    return { width: bounds[2] - bounds[0], height: bounds[3] - bounds[1] };
+};
 
 methods.getPageLinks = function (doc_id, page_number) {
-	let doc = document_map[doc_id]
-	let page = doc.loadPage(page_number)
-	let links = page.getLinks()
+    let doc = document_map[doc_id];
+    let page = doc.loadPage(page_number);
+    let links = page.getLinks();
 
-	return links.map((link) => {
-		const [ x0, y0, x1, y1 ] = link.getBounds()
+    return links.map((link) => {
+        const [x0, y0, x1, y1] = link.getBounds();
 
-		let href
-		if (link.isExternal())
-			href = link.getURI()
-		else
-			href = `#page${doc.resolveLink(link) + 1}`
+        let href;
+        if (link.isExternal()) href = link.getURI();
+        else href = `#page${doc.resolveLink(link) + 1}`;
 
-		return {
-			x: x0,
-			y: y0,
-			w: x1 - x0,
-			h: y1 - y0,
-			href,
-		}
-	})
-}
+        return {
+            x: x0,
+            y: y0,
+            w: x1 - x0,
+            h: y1 - y0,
+            href,
+        };
+    });
+};
 
 methods.getPageText = function (doc_id, page_number) {
-	let doc = document_map[doc_id]
-	let page = doc.loadPage(page_number)
-	let text = page.toStructuredText("preserve-whitespace").asJSON()
-	return JSON.parse(text)
-}
+    let doc = document_map[doc_id];
+    let page = doc.loadPage(page_number);
+    let text = page.toStructuredText("preserve-whitespace").asJSON();
+    return JSON.parse(text);
+};
+
+methods.getPage = function (doc_id, page_number, dpi) {
+    let doc = document_map[doc_id];
+    let page = doc.loadPage(page_number);
+    let bounds = page.getBounds();
+    let text = page.toStructuredText("preserve-whitespace").asJSON();
+
+    const doc_to_screen = mupdf.Matrix.scale(dpi / 72, dpi / 72);
+    let bbox = mupdf.Rect.transform(page.getBounds(), doc_to_screen);
+    let pixmap = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, bbox, true);
+    pixmap.clear(255);
+
+    let device = new mupdf.DrawDevice(doc_to_screen, pixmap);
+    page.run(device, mupdf.Matrix.identity);
+    device.close();
+
+    // TODO: do we need to make a copy with slice() ?
+    let imageData = new ImageData(
+        pixmap.getPixels().slice(),
+        pixmap.getWidth(),
+        pixmap.getHeight()
+    );
+
+    pixmap.destroy();
+
+    return {
+        size: { width: bounds[2] - bounds[0], height: bounds[3] - bounds[1] },
+        textData: JSON.parse(text),
+        imageData,
+    };
+};
 
 methods.search = function (doc_id, page_number, needle) {
-	let doc = document_map[doc_id]
-	let page = doc.loadPage(page_number)
-	const hits = page.search(needle)
-	let result = []
-	for (let hit of hits) {
-		for (let quad of hit) {
-			const [ ulx, uly, urx, ury, llx, lly, lrx, lry ] = quad
-			result.push({
-				x: ulx,
-				y: uly,
-				w: urx - ulx,
-				h: lly - uly,
-			})
-		}
-	}
-	return result
-}
+    let doc = document_map[doc_id];
+    let page = doc.loadPage(page_number);
+    const hits = page.search(needle);
+    let result = [];
+    for (let hit of hits) {
+        for (let quad of hit) {
+            const [ulx, uly, urx, ury, llx, lly, lrx, lry] = quad;
+            result.push({
+                x: ulx,
+                y: uly,
+                w: urx - ulx,
+                h: lly - uly,
+            });
+        }
+    }
+    return result;
+};
 
 methods.highlightText = function (doc_id, page_number, needle) {
-	let doc = document_map[doc_id]
-	let page = doc.loadPage(page_number)
-	const hits = page.search(needle)
-	let annotation = page.createAnnotation("Underline")
-	annotation.setColor([255, 255, 0]);
-	annotation.setQuadPoints(hits[0]);
-	annotation.update();
-	console.log(hits[0]);
-}
+    let doc = document_map[doc_id];
+    let page = doc.loadPage(page_number);
+    const hits = page.search(needle);
+    let annotation = page.createAnnotation("Underline");
+    annotation.setColor([255, 255, 0]);
+    annotation.setQuadPoints(hits[0]);
+    annotation.update();
+    console.log(hits[0]);
+};
 
 methods.getPageAnnotations = function (doc_id, page_number, dpi) {
-	let doc = document_map[doc_id]
-	let page = doc.loadPage(page_number)
+    let doc = document_map[doc_id];
+    let page = doc.loadPage(page_number);
 
-	if (page == null) {
-		return []
-	}
+    if (page == null) {
+        return [];
+    }
 
-	const annotations = page.getAnnotations()
-	const doc_to_screen = [ dpi = 72, 0, 0, dpi / 72, 0, 0 ]
+    const annotations = page.getAnnotations();
+    const doc_to_screen = [(dpi = 72), 0, 0, dpi / 72, 0, 0];
 
-	return annotations.map((annotation) => {
-		const [ x0, y0, x1, y1 ] = mupdf.Matrix.transformRect(annotation.getBounds())
-		return {
-			x: x0,
-			y: y0,
-			w: x1 - x0,
-			h: y1 - y0,
-			type: annotation.getType(),
-			ref: annotation.pointer,
-		}
-	})
-}
+    return annotations.map((annotation) => {
+        const [x0, y0, x1, y1] = mupdf.Matrix.transformRect(
+            annotation.getBounds()
+        );
+        return {
+            x: x0,
+            y: y0,
+            w: x1 - x0,
+            h: y1 - y0,
+            type: annotation.getType(),
+            ref: annotation.pointer,
+        };
+    });
+};
 
 methods.drawPageAsPixmap = function (doc_id, page_number, dpi) {
-	const doc_to_screen = mupdf.Matrix.scale(dpi / 72, dpi / 72)
+    const doc_to_screen = mupdf.Matrix.scale(dpi / 72, dpi / 72);
 
-	let doc = document_map[doc_id]
-	let page = doc.loadPage(page_number)
-	let bbox = mupdf.Rect.transform(page.getBounds(), doc_to_screen)
+    let doc = document_map[doc_id];
+    let page = doc.loadPage(page_number);
+    let bbox = mupdf.Rect.transform(page.getBounds(), doc_to_screen);
 
-	let pixmap = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, bbox, true)
-	pixmap.clear(255)
+    let pixmap = new mupdf.Pixmap(mupdf.ColorSpace.DeviceRGB, bbox, true);
+    pixmap.clear(255);
 
-	let device = new mupdf.DrawDevice(doc_to_screen, pixmap)
-	page.run(device, mupdf.Matrix.identity)
-	device.close()
+    let device = new mupdf.DrawDevice(doc_to_screen, pixmap);
+    page.run(device, mupdf.Matrix.identity);
+    device.close();
 
-	// TODO: do we need to make a copy with slice() ?
-	let imageData = new ImageData(pixmap.getPixels().slice(), pixmap.getWidth(), pixmap.getHeight())
+    // TODO: do we need to make a copy with slice() ?
+    let imageData = new ImageData(
+        pixmap.getPixels().slice(),
+        pixmap.getWidth(),
+        pixmap.getHeight()
+    );
 
-	pixmap.destroy()
+    pixmap.destroy();
 
-	// TODO: do we need to pass image data as transferable to avoid copying?
-	return imageData
-}
+    // TODO: do we need to pass image data as transferable to avoid copying?
+    return imageData;
+};
 
-postMessage([ "INIT", 0, Object.keys(methods) ])
+postMessage(["INIT", 0, Object.keys(methods)]);

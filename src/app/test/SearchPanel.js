@@ -54,8 +54,11 @@ export default function DataContext() {
             if (block.type !== "text") return;
             for (let j = 0; j < blocks[i].lines.length; j++) {
                 const line = block.lines[j];
-                if (regex.test(line.text)) {
-                    patternSearch[line.text] = [line.bbox];
+                if (line.text.includes("Trimester")) {
+                    console.log(line.text)
+                }
+                if (regex.test(line.text.trim())) {
+                    patternSearch[line.text.trim()] = [line.bbox];
                 }
             }
         }

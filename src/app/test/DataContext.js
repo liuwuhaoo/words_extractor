@@ -32,7 +32,10 @@ function reducer(state, action) {
                 ...state,
                 pages: {
                     ...state.pages,
-                    [payload.pageNumber]: payload.pageInfo,
+                    [payload.pageNumber]: {
+                        ...state.pages[payload.pageNumber],
+                        ...payload.pageInfo,
+                    }
                 },
             };
         case "UPDATE_SEARCH": {

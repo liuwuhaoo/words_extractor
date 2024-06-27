@@ -64,7 +64,6 @@ export default function TextLayer({ pageNumber }) {
         (e) => {
             e.stopPropagation();
             if (!menuPosition) return;
-            console.log("remove menu");
             setMenuPosition(null);
             clearSelection();
         },

@@ -146,10 +146,10 @@ methods.search = function (doc_id, page_number, needle) {
         for (let quad of hit) {
             const [ulx, uly, urx, ury, llx, lly, lrx, lry] = quad;
             result.push({
-                x: ulx,
-                y: uly,
-                w: urx - ulx,
-                h: lly - uly,
+                x: Math.floor(ulx),
+                y: Math.floor(uly),      
+                w: Math.floor(urx - ulx),
+                h: Math.floor(lly - uly),
             });
         }
     }

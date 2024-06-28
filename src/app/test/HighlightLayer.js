@@ -26,5 +26,5 @@ export default function HighlightLayer({ pageNumber }) {
         );
     }, [searchData, scale]);
 
-    return <div className="search">{searchItems}</div>;
+    return <div className="search page-cover">{searchItems}</div>;
 }

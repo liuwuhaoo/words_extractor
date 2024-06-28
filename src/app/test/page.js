@@ -1,15 +1,13 @@
 "use client";
 
 import { DataProvider } from "./DataContext";
-import SearchPanel from "./SearchPanel";
 import Pages from "./Pages";
 
 export default function About() {
     return (
-        <div className="flex justify-center h-screen">
+        <div className="flex justify-center flex-col">
             <DataProvider>
                 <Pages />
-                <SearchPanel />
             </DataProvider>
         </div>
     );

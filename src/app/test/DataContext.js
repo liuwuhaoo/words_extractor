@@ -23,6 +23,8 @@ const initialState = {
 function reducer(state, action) {
     const { type, payload } = action;
     switch (type) {
+        case "SET_PATTERN":
+            return { ...state, pattern: payload };
         case "UPDATE_PAGE_COUNT":
             return { ...state, pageCount: payload.pageCount };
         case "UPDATE_DOC_ID":
@@ -35,7 +37,7 @@ function reducer(state, action) {
                     [payload.pageNumber]: {
                         ...state.pages[payload.pageNumber],
                         ...payload.pageInfo,
-                    }
+                    },
                 },
             };
         case "UPDATE_SEARCH": {
@@ -90,7 +92,34 @@ function reducer(state, action) {
                     },
                 },
             };
-        
+        }
+        case "SEARCH_PATTERN_MATCHES": {
+            const { pattern, pages } = state;
+            let regex;
+
+            try {
+                regex = new RegExp(pattern);
+            } catch (e) {
+                console.error("Invalid regex:", e);
+                return state;
+            }
+
+            for (let i = 0; i < Object.keys(pages).length; i++) {
+                const page = pages[i];
+                const searchData = {};
+                const {textData: {blocks} = {}} = page;
+                for (let j = 0; j < blocks.length; j++) {
+                    const lines = blocks[j].lines;
+                    for (let k = 0; k < lines.length; k++) {
+                        const line = lines[k];
+                        if (regex.test(line.text.trim())) {
+                            searchData[line.text.trim()] = [line.bbox];
+                        }
+                    }
+                }
+                page.searchData = searchData;
+            }
+            return { ...state, pages };
         }
         default:
             return state;
@@ -120,7 +149,7 @@ export function useMyContext() {
     return context;
 }
 
-const path = "test.pdf";
+const path = "test1.pdf";
 
 function useDocId() {
     const { state, worker, dispatch } = useMyContext();
@@ -144,7 +173,7 @@ function useDocId() {
 
     useEffect(() => {
         if (worker && state.docId === 0) {
-            open_document_from_url("test.pdf");
+            open_document_from_url();
         }
         return () => {};
     }, [worker, open_document_from_url, state.docId]);

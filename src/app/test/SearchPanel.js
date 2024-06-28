@@ -1,23 +1,20 @@
 import { useMemo, useCallback } from "react";
 import { usePage, useMyContext } from "./DataContext";
 
-export default function DataContext() {
-    const {
-        state: { currentPage, pattern },
-        dispatch,
-    } = useMyContext();
+export default function SearchPanel({ pageNumber }) {
+    const { dispatch } = useMyContext();
     const { page: { searchData, textData: { blocks } = {} } = {} } =
-        usePage(currentPage);
+        usePage(pageNumber);
 
     const handleRemoveSearch = useCallback(
         (text) => {
             dispatch({
                 type: "REMOVE_SEARCH",
-                payload: { pageNumber: currentPage, text },
+                payload: { pageNumber: pageNumber, text },
             });
             console.log("removing search", text);
         },
-        [currentPage, dispatch]
+        [pageNumber, dispatch]
     );
 
     const searchItems = useMemo(() => {
@@ -38,58 +35,7 @@ export default function DataContext() {
         ));
     }, [searchData, handleRemoveSearch]);
 
-    const handlePatternChange = useCallback(() => {
-        let regex;
-
-        try {
-            regex = new RegExp(pattern);
-        } catch (e) {
-            console.error("Invalid regex:", e);
-            return null;
-        }
-
-        const patternSearch = {};
-        for (let i = 0; i < blocks.length; i++) {
-            const block = blocks[i];
-            if (block.type !== "text") return;
-            for (let j = 0; j < blocks[i].lines.length; j++) {
-                const line = block.lines[j];
-                if (line.text.includes("Trimester")) {
-                    console.log(line.text)
-                }
-                if (regex.test(line.text.trim())) {
-                    patternSearch[line.text.trim()] = [line.bbox];
-                }
-            }
-        }
-
-        if (Object.keys(patternSearch).length > 0) {
-            dispatch({
-                type: "UPDATE_SEARCH_GROUP",
-                payload: { pageNumber: currentPage, patternSearch },
-            });
-        }
-    }, [blocks, currentPage, dispatch, pattern]);
-
     return (
-        <div className="flex-col flex">
-            <div className="flex m-2">
-                <input
-                    type="text"
-                    className="flex-grow px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter text here"
-                    value={pattern}
-                    onChange={() => {}}
-                />
-                <button
-                    className="ml-2 px-4 py-2 text-white bg-blue-500 border border-blue-500 rounded-lg shadow-md hover:bg-blue-600 focus:outline-none"
-                    onClick={handlePatternChange}
-                >
-                    Add Matches
-                </button>
-            </div>
-
-            <div className="overflow-y-scroll">{searchItems}</div>
-        </div>
+        <div className="w-48 overflow-y-scroll bg-gray-100">{searchItems}</div>
     );
 }

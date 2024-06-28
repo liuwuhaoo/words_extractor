@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 
 import { useMyContext, usePage } from "./DataContext";
 import HighlightLayer from "./HighlightLayer";
 import TextLayer from "./TextLayer";
+import SearchPanel from "./SearchPanel";
 
 const computeSize = (size, zoom) => (((size * zoom) / 72) | 0) + "px";
 
@@ -31,27 +32,39 @@ const PageView = ({ pageNumber }) => {
 
     return (
         <div
-            ref={rootNodeRef}
-            className="page"
+            className="flex justify-center my-8"
             style={
                 size && {
-                    width: computeSize(size.width, zoom),
+                    // width: computeSize(size.width, zoom),
                     height: computeSize(size.height, zoom),
                 }
             }
         >
-            <canvas
-                ref={canvasNodeRef}
+            <div
+                ref={rootNodeRef}
+                className="page mr-4"
                 style={
                     size && {
                         width: computeSize(size.width, zoom),
                         height: computeSize(size.height, zoom),
                     }
                 }
-                zoom={zoom}
-            />
-            <TextLayer pageNumber={pageNumber} />
-            <HighlightLayer pageNumber={pageNumber} />
+            >
+                <canvas
+                    ref={canvasNodeRef}
+                    className="page-canvas"
+                    style={
+                        size && {
+                            width: computeSize(size.width, zoom),
+                            height: computeSize(size.height, zoom),
+                        }
+                    }
+                    zoom={zoom}
+                />
+                <TextLayer pageNumber={pageNumber} />
+                <HighlightLayer pageNumber={pageNumber} />
+            </div>
+            <SearchPanel pageNumber={pageNumber} />
         </div>
     );
 };

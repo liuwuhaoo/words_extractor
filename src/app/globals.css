@@ -217,6 +217,7 @@ div.page canvas {
 svg.text {
 	width: 100%;
 	height: 100%;
+	z-index: 1;
 }
 
 svg.text text {
@@ -239,7 +240,12 @@ div.link a:hover {
 
 div.search > div {
 	pointer-events: none;
-	border: 1px solid hotpink;
-	background-color: lightpink;
+	border: 1px solid black;
+	background-color: white;
 	mix-blend-mode: multiply;
+}
+
+div.page-cover {
+	width: 100%;
+	height: 100%;
 }

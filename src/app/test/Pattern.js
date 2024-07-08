@@ -1,8 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import domtoimage from "dom-to-image";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-import FileSaver from "file-saver";
 import { useMyContext } from "./DataContext";
 
 const downloadUrl = (url, name) => {
@@ -12,6 +11,45 @@ const downloadUrl = (url, name) => {
     link.click();
     URL.revokeObjectURL(url);
 };
+
+const domtoSvgBlob = async (element) => {
+    const dataUrl = await domtoimage.toSvg(element);
+    const response = await fetch(dataUrl);
+    const svgBlob = await response.blob();
+    return svgBlob;
+};
+
+function getCoveringRectangle(bboxes) {
+    if (bboxes.length === 0) {
+        return null;
+    }
+
+    // Initialize min and max values
+    let minX = Infinity,
+        minY = Infinity;
+    let maxX = -Infinity,
+        maxY = -Infinity;
+
+    // Iterate through each bounding box
+    bboxes.forEach(({ x, y, w, h }) => {
+        // Calculate the right and bottom edges of the bbox
+        const right = x + w;
+        const bottom = y + h;
+
+        // Update min and max values
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (right > maxX) maxX = right;
+        if (bottom > maxY) maxY = bottom;
+    });
+
+    // Calculate the width and height of the covering rectangle
+    const coveringWidth = maxX - minX;
+    const coveringHeight = maxY - minY;
+
+    // Return the covering rectangle
+    return { x: minX, y: minY, w: coveringWidth, h: coveringHeight };
+}
 
 export default function Pattern() {
     const {
@@ -29,61 +67,61 @@ export default function Pattern() {
         dispatch({ type: "SEARCH_PATTERN_MATCHES" });
     }, [dispatch, pattern]);
 
-    const handleDownloadJson = useCallback(
-        (type) => {
-            const searchData = {};
-            for (let i = 0; i < Object.keys(pages).length; i++) {
-                searchData[i] = pages[i].searchData;
-            }
-            const searchDataStr = JSON.stringify(searchData);
-            const blob = new Blob([searchDataStr], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const name = title ? title + ".json" : "search-data.json";
-            downloadUrl(url, name);
-        },
-        [pages, title]
-    );
+    useEffect(() => {
+        console.log("searchPatternMatches");
+        setTimeout(() => {
+            searchPatternMatches();
+        }, 1500);
+    }, [searchPatternMatches]);
+
+    const handleDownloadJson = useCallback(() => {
+        const searchData = {};
+        for (let i = 0; i < Object.keys(pages).length; i++) {
+            searchData[i] = pages[i].searchData;
+        }
+        const searchDataStr = JSON.stringify(searchData);
+        const blob = new Blob([searchDataStr], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const name = title ? title + ".json" : "search-data.json";
+        downloadUrl(url, name);
+    }, [pages, title]);
 
     const handleDownloadAnki = useCallback(async () => {
-        // const images = document.getElementsByClassName("page-canvas");
-        // const imageUrl = await domtoimage.toSvg(images[0]);
-        // console.log(imageUrl);
-        // const imageBlob = new Blob([imageUrl], { type: "image/svg+xml;charset=utf-8" });
-        // // downloadUrl(imageUrl, "anki.svg");
-        // // saveAs(imageUrl, "anki.svg");
-        // // window.saveAs(imageUrl, "anki.svg");
+        const images = document.getElementsByClassName("page-canvas");
+        const imgBlobs = await Promise.all(
+            Array.prototype.map.call(images, async (image) => {
+                return await domtoSvgBlob(image);
+            })
+        );
+        const covers = document.getElementsByClassName("page-cover");
+        const coverBlobs = await Promise.all(
+            Array.prototype.map.call(covers, async (cover) => {
+                return await domtoSvgBlob(cover);
+            })
+        );
+        // Create a new zip instance
+        const zip = new JSZip();
+        // Add the SVG file to the zip
+        for (let i = 0; i < imgBlobs.length; i++) {
+            zip.file(`image-${i}.svg`, imgBlobs[i]);
+            zip.file(`cover-${i}.svg`, coverBlobs[i]);
+        }
 
-        // // const covers = document.getElementsByClassName("page-cover");
-        // const zip = new JSZip();
-        // zip.file("anki.svg", imageUrl, { binary: true });
-        // const content = await zip.generateAsync({ type: "blob" });
-        // saveAs(content, title);
+        let csvStr = "";
+        for (const i in pages) {
+            const page = pages[i];
+            const searchData = page.searchData;
+            for (const word in searchData) {
+                const bbox = getCoveringRectangle(searchData[word]);
+                csvStr += `${word},${word},${i},${bbox.x},${bbox.y},${bbox.w},${bbox.h}\n`;
+            }
+        }
+        zip.file("data.csv", csvStr);
 
-        // downloadUrl(
-        //     URL.createObjectURL(
-        //         await zip.generateAsync({ type: "blob" }),
-        //         "anki.zip"
-        //     )
-        // );
-
-        // saveAs(imageBlob, "anki.svg");
-        // downloadUrl(imageUrl, "anki.svg");
-        // const zip = new JSZip();
-        // for (let i = 0; i < images.length; i++) {
-        //     const imageUrl = await domtoimage.toSvg(images[i]);
-        //     const imageBlob = new Blob([imageUrl], {type: 'image/svg+xml;charset=utf-8'});
-        //     const coverUrl = await domtoimage.toSvg(covers[i]);
-        //     const coverBlob = new Blob([coverUrl], {type: 'image/svg+xml;charset=utf-8'});
-        //     zip.file(`page-${i}.svg`, imageBlob);
-        //     zip.file(`cover-${i}.svg`, coverBlob);
-        // }
-        // const content = await zip.generateAsync({ type: "blob" });
-        // downloadUrl(URL.createObjectURL(content), "anki.zip");
-        // saveAs(content, title);
-        // const url = await domtoimage.toSvg(covers[0]);
-        // downloadUrl(url, "anki.svg");
-    }, []);
-
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        // Use file-saver to save the zip file
+        saveAs(zipBlob, "image.zip");
+    }, [pages]);
     return (
         <div className="flex justify-center items-center p-4">
             <div className="flex w-full max-w-md">

@@ -123,6 +123,7 @@ export default function TextLayer({ pageNumber }) {
                             background: "white",
                             border: "1px solid black",
                             padding: "2px",
+                            zIndex: 100,
                         }}
                     >
                         <button onMouseDown={handleSave}>Save</button>

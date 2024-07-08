@@ -15,7 +15,8 @@
     "mupdf": "^0.2.2",
     "next": "14.2.4",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "sql.js": "^1.7.0"
   },
   "devDependencies": {
     "@types/node": "^20",

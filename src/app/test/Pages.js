@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from "react";
 import PageView from "./PageView";
 import { usePageCount } from "./DataContext.js";
-import Hello from "./Pattern";
+import Pattern from "./Pattern";
 
 export default function Pages(path) {
     const messageRef = useRef(null);
@@ -34,7 +34,7 @@ export default function Pages(path) {
 
     return (
         <div>
-            <Hello />
+            <Pattern />
             <div ref={messageRef}>Loading MuPDF.js...</div>
             <div id="pages">{pageViews}</div>
         </div>

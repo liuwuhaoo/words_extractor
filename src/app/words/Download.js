@@ -116,6 +116,13 @@ getJsonFromSvg("{{Deck}}" + "_image_" + "{{Page}}" + "_mask.svg")
 `;
 
 const backSide = `
+<style>
+.hint {
+    position: absolute;
+    right: 0;
+}
+</style>
+<div class="hint"}>{{Front}}</div>
 {{FrontSide}}
 <script>
 setTimeout(() => {

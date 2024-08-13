@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { useMyContext, usePage } from "./DataContext";
 import HighlightLayer from "./HighlightLayer";
@@ -12,6 +12,7 @@ const PageView = ({ pageNumber }) => {
         state: { zoom },
     } = useMyContext();
     const { page: { size, imageData } = {} } = usePage(pageNumber);
+    const [canvasLoading, setCanvasLoading] = useState(false);
 
     const rootNodeRef = useRef(null);
     const canvasNodeRef = useRef(null);
@@ -19,12 +20,15 @@ const PageView = ({ pageNumber }) => {
 
     useEffect(() => {
         if (!imageData || !canvasNodeRef.current || !canvasCtxRef.current) {
+            setTimeout(() => {
+                setCanvasLoading(!canvasLoading);
+            }, 500);
             return;
         }
         canvasNodeRef.current.width = imageData.width;
         canvasNodeRef.current.height = imageData.height;
         canvasCtxRef.current.putImageData(imageData, 0, 0);
-    }, [imageData]);
+    }, [imageData, canvasLoading]);
 
     useEffect(() => {
         canvasCtxRef.current = canvasNodeRef.current.getContext("2d");

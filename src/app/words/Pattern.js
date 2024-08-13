@@ -26,13 +26,6 @@ export default function Pattern() {
         dispatch({ type: "SEARCH_PATTERN_MATCHES" });
     }, [dispatch, pattern]);
 
-    useEffect(() => {
-        console.log("searchPatternMatches");
-        setTimeout(() => {
-            searchPatternMatches();
-        }, 1500);
-    }, [searchPatternMatches]);
-
     const handleDownloadJson = useCallback(() => {
         const searchData = {};
         for (let i = 0; i < Object.keys(pages).length; i++) {

@@ -23,6 +23,8 @@ const initialState = {
 function reducer(state, action) {
     const { type, payload } = action;
     switch (type) {
+        case 'UPLOAD_FILE':
+            return { ...state, title: payload.title, arrayBuffer: payload.arrayBuffer };     
         case "SET_PATTERN":
             return { ...state, pattern: payload };
         case "UPDATE_PAGE_COUNT":
@@ -149,36 +151,9 @@ export function useMyContext() {
     return context;
 }
 
-const path = "test1.pdf";
-
 function useDocId() {
-    const { state, worker, dispatch } = useMyContext();
-    const [isLoading, setIsLoading] = useState(false);
-    const open_document_from_url = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            let response = await fetch(path);
-            if (!response.ok) throw new Error("Could not fetch document.");
-            worker
-                .openDocumentFromBuffer(await response.arrayBuffer(), "pdf")
-                .then((docId) => {
-                    dispatch({ type: "UPDATE_DOC_ID", payload: { docId } });
-                    setIsLoading(false);
-                });
-        } catch (error) {
-            show_message(error.name + ": " + error.message);
-            console.error(error);
-        }
-    }, [worker, dispatch]);
-
-    useEffect(() => {
-        if (worker && state.docId === 0) {
-            open_document_from_url();
-        }
-        return () => {};
-    }, [worker, open_document_from_url, state.docId]);
-
-    return { docId: state.docId, isLoading };
+    const { state } = useMyContext();
+    return { docId: state.docId };
 }
 
 export function usePageCount() {
@@ -227,4 +202,32 @@ export function usePage(pageNumber) {
     }, [fetchPage, isLoading, pageNumber, state.pages, state.docId]);
 
     return { page: state.pages[pageNumber], isLoading };
+}
+
+export function useAllPages() {
+    const { state: {docId, pageCount, pages}, worker, dispatch } = useMyContext();
+    const [isLoading, setIsLoading] = useState(false);
+
+    const fetchAllPages = useCallback(async () => {
+        if (!worker) return;
+        setIsLoading(true);
+        for (let i = 0; i < state.pageCount; i++) {
+            if (pages[i]) continue;
+            const pageInfo = await worker.getPage(
+                state.docId,
+                i,
+                state.zoom * devicePixelRatio
+            );
+            dispatch({ type: "UPDATE_PAGE", payload: { pageNumber: i, pageInfo } });
+        }
+        setIsLoading(false);
+    }, [pages, worker, dispatch]);
+
+    useEffect(() => {
+        if (pageCount > 0 && !isLoading && docId !== 0) {
+            fetchAllPages();
+        }
+    }, [fetchAllPages, isLoading, pageCount, docId]);
+
+    return { pages: pages, isLoading };
 }

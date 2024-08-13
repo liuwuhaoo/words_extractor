@@ -1,11 +1,49 @@
 "use client";
 import Script from "next/script";
 import domtoimage from "dom-to-image";
-import { useEffect, useState, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useState, useCallback } from "react";
 
 const frontSide = `
-<style>.card{font-family:arial;font-size:20px;text-align:center;color:#000;background-color:#fff}#content{position:relative}#container{display:flex;align-items:center}@keyframes fadeOut{0%{background-color:red}100%{background-color:transparent}}.fading{animation:fadeOut 1s forwards!important}</style><div id=container><div id=content>{{Image}}</div><div>{{type:Back}}</div></div>
+<style>
+.card {
+	font-family: arial;
+	font-size: 20px;
+	text-align: center;
+	color: #000;
+	background-color: #fff
+}
+
+#content {
+	position: relative
+}
+
+#container {
+	display: flex;
+	align-items: center
+}
+
+@keyframes fadeOut {
+	0% {
+		background-color: red
+	}
+
+	100% {
+		background-color: transparent
+	}
+}
+
+.fading {
+	animation: fadeOut 1s forwards !important
+}
+
+#content img {
+	max-height: none;
+}
+</style>
+<div id=container>
+    <div id=content>{{Image}}</div>
+    <div>{{type:Back}}</div>
+</div>
 <script>
 function getJsonFromSvg(filename) {
     return fetch(filename)
@@ -78,7 +116,9 @@ getJsonFromSvg("{{Deck}}" + "_image_" + "{{Page}}" + "_mask.svg")
 `;
 
 const backSide = `
-{{FrontSide}}<hr id=answer><script>setTimeout(() => {
+{{FrontSide}}
+<script>
+setTimeout(() => {
 	masks = document.getElementsByClassName("current_mask");
   for (let i = 0; i < masks.length; i++) {
 		masks[i].classList.add("fading");
@@ -147,7 +187,7 @@ function saveJsonAsSvg(jsonData, fileName = "data.svg") {
     return blob;
 }
 
-export default function About({ pages }) {
+export default function Download({ pages }) {
     const [sql, setSql] = useState(null);
     const [deckName, setDeckName] = useState("");
 
@@ -168,6 +208,10 @@ export default function About({ pages }) {
     const handleDownloadAnki = useCallback(async () => {
         if (deckName === "") {
             alert("Please enter the deck name");
+            return;
+        }
+        if (!pages[0].searchData) {
+            alert("Please search the pattern");
             return;
         }
         const images = document.getElementsByClassName("page-canvas");

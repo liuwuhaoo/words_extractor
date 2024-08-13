@@ -18,7 +18,7 @@ const PageView = ({ pageNumber }) => {
     const canvasCtxRef = useRef(null);
 
     useEffect(() => {
-        if (!imageData) {
+        if (!imageData || !canvasNodeRef.current || !canvasCtxRef.current) {
             return;
         }
         canvasNodeRef.current.width = imageData.width;

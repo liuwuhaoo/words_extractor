@@ -3,8 +3,7 @@ import { usePage, useMyContext } from "./DataContext";
 
 export default function SearchPanel({ pageNumber }) {
     const { dispatch } = useMyContext();
-    const { page: { searchData, textData: { blocks } = {} } = {} } =
-        usePage(pageNumber);
+    const { page: { searchData } = {} } = usePage(pageNumber);
 
     const handleRemoveSearch = useCallback(
         (text) => {
@@ -12,7 +11,6 @@ export default function SearchPanel({ pageNumber }) {
                 type: "REMOVE_SEARCH",
                 payload: { pageNumber: pageNumber, text },
             });
-            console.log("removing search", text);
         },
         [pageNumber, dispatch]
     );
@@ -36,6 +34,6 @@ export default function SearchPanel({ pageNumber }) {
     }, [searchData, handleRemoveSearch]);
 
     return (
-        <div className="w-48 overflow-y-scroll bg-gray-100">{searchItems}</div>
+        searchData && <div className="w-64 overflow-y-scroll bg-gray-100">{searchItems}</div>
     );
 }

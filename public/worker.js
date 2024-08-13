@@ -164,7 +164,6 @@ methods.highlightText = function (doc_id, page_number, needle) {
     annotation.setColor([255, 255, 0]);
     annotation.setQuadPoints(hits[0]);
     annotation.update();
-    console.log(hits[0]);
 };
 
 methods.getPageAnnotations = function (doc_id, page_number, dpi) {
